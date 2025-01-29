@@ -2,6 +2,7 @@
 
 # user defined
 extra_code
+temp_files
 
 # compiled output
 /dist

@@ -148,7 +148,7 @@ html, body {
 #playground-window {
     display: flex;
     width: 100%;
-    height: 90vh;
+    height: 88%;
 }
 
 #editor-container {
@@ -184,6 +184,7 @@ html, body {
     justify-content: center;
     align-items: center;
     min-width: 30px;
+    min-height: 30px;
     width: 60px;
     height: 30px;
     cursor: pointer;

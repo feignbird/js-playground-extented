@@ -13,23 +13,63 @@ import { javascript } from "@codemirror/lang-javascript";
       "preset": "react-native",
       "fullscreen": true,
       "panes": [
+        "editor",
         {
           "id": "player",
           "type": "player",
           "platform": "ios",
           "width": 320,
           "scale": 1,
-          "prelude": "var bundle = window['react-navigation-bundle'];\n__VendorComponents.register('@react-navigation/native', { NavigationContainer: bundle.NavigationContainer });\n__VendorComponents.register('@react-navigation/stack', { createStackNavigator: bundle.createStackNavigator });",
+          "prelude": `
+    var bundle = window['react-navigation-bundle'];
+    __VendorComponents.register('@react-navigation/native', { NavigationContainer: bundle.NavigationContainer });
+    __VendorComponents.register('@react-navigation/stack', { createStackNavigator: bundle.createStackNavigator });
+
+    function extractAndSendDivContent(fromParent=null) {
+        try {
+            // Try accessing the middle iframe's \`document\`
+            let parentDoc = window.parent.document;
+
+            // Get the div inside the middle iframe (Change selector as needed)
+            let targetDiv = parentDoc.querySelector("#player-root").children[0].children[0].children[0].children[1];
+
+            if (targetDiv) {
+                let divContent = targetDiv.outerHTML;
+                let message = {
+                  'type' : 'element',
+                  'value' : divContent,
+                  'fromParent' : fromParent
+                };
+                // Send the extracted div content to the top-level parent page
+                window.top.postMessage({ type: 'middle-iframe-div', content: JSON.stringify(message) }, '*');
+            } else {
+                message['type'] = 'error'
+                message['value'] = 'Target div not found in middle iframe.'
+                window.top.postMessage({ type: 'middle-iframe-div', content: JSON.stringify(message) }, '*');
+                console.warn("Target div not found in middle iframe.");
+            }
+        } catch (err) {
+            message['type'] = 'error'
+            message['value'] = "Cannot access middle iframe:" + err
+            window.top.postMessage({ type: 'middle-iframe-div', content: JSON.stringify(message) }, '*');
+            console.error("Cannot access middle iframe:", err);
+        }
+    }
+
+    // Try extracting when the page loads
+    window.addEventListener('load', extractAndSendDivContent);
+    // window.parent.window.addEventListener('load', extractAndSendDivContent);
+    // window.parent.window.addEventListener('message', (e)=>{extractAndSendDivContent(e.data)});
+    // window.setInterval(()=>{extractAndSendDivContent();}, 2000);
+    // Try extracting when content updates
+
+    new MutationObserver(extractAndSendDivContent).observe(document.body, { childList: true, subtree: true });
+`,
           "modules": [
             {
               "name": "react-navigation-bundle",
-              "url": "https://the-coder.s3.ap-south-1.amazonaws.com/js/react-navigation-bundle.js",
+              "url": "https://static-archives.s3.ap-south-1.amazonaws.com/react-navigation-bundle.js",
               "globalName": "react-navigation-bundle"
-            },
-            {
-              "name": "tinylib",
-              "url": "https://the-coder.s3.ap-south-1.amazonaws.com/tinylib.js",
-              "globalName": "tinylib"
             }
           ]
         }
@@ -45,8 +85,6 @@ import { javascript } from "@codemirror/lang-javascript";
   var current_configuration = {};
   var justChangedFileName = "";
   var selectedFileName = "";
-
-
 
   // ############################### editor code ####################################
 
@@ -174,8 +212,32 @@ import { javascript } from "@codemirror/lang-javascript";
     renderSelectedFile();
   };
 
+
+  const errorEvent = (event) => {
+    // TODO: Main issue is that when the error comes the prelude don't even get executed in the player-frame (nested-frame)
+    // and everthing previous in the prelude gets removed. So, The error can only be shown when the javascript-playground repo (devit abbot) 
+    // itself gets changed.
+    // console.log("Received message:", event);
+    // Check if the message is from the middle iframe (indirectly)
+    // console.log("event: ", event.data);
+    if (event.data.type === "middle-iframe-div") {
+      console.log("Extracted div content from middle iframe:", event.data.content);
+      $('#output-error').empty();
+      let parsedJson = JSON.parse(event.data.content);
+      if (parsedJson.type==="element"){
+        $('#output-error').append(parsedJson.value);
+      } else if (parsedJson.type==="error"){
+        $('#output-error').append("<p> Internal error, Can't display the error! </p>");
+        $('#output-error').append(`<p> ${parsedJson.value} </p>`);
+      }
+    }
+  }
+
+
   const renderIframeBlockHtmlString = (srcUrl=null) => {
     $('#iframe-container').empty();
+    window.removeEventListener('nested-iframe-content', errorEvent);
+    window.addEventListener('message', errorEvent);
     $('#iframe-container').append(`<iframe src="${srcUrl}" id='main-iframe'></iframe>`);
   };
 
