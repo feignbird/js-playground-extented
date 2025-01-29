@@ -24351,9 +24351,8 @@
 
     // Try extracting when the page loads
     window.addEventListener('load', extractAndSendDivContent);
-    window.parent.window.addEventListener('load', extractAndSendDivContent);
+    // window.parent.window.addEventListener('load', extractAndSendDivContent);
     // window.parent.window.addEventListener('message', (e)=>{extractAndSendDivContent(e.data)});
-
     // window.setInterval(()=>{extractAndSendDivContent();}, 2000);
     // Try extracting when content updates
 
@@ -24508,9 +24507,12 @@
 
 
      const errorEvent = (event) => {
-       console.log("Received message:", event);
+       // TODO: Main issue is that when the error comes the prelude don't even get executed in the player-frame (nested-frame)
+       // and everthing previous in the prelude gets removed. So, The error can only be shown when the javascript-playground repo (devit abbot) 
+       // itself gets changed.
+       // console.log("Received message:", event);
        // Check if the message is from the middle iframe (indirectly)
-       console.log("event: ", event.data);
+       // console.log("event: ", event.data);
        if (event.data.type === "middle-iframe-div") {
          console.log("Extracted div content from middle iframe:", event.data.content);
          $('#output-error').empty();
